@@ -1,13 +1,21 @@
+import { Route, Routes } from "react-router-dom";
 import "./App.css";
 import Navbar from "./Component/Navbar";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 function App() {
   return (
     <>
       <Navbar />
+
       <main className="container py-4">
-        <h1 className="h3">Frontend Capstone</h1>
-        <p className="text-muted">Bootstrap ok. Prossimo step: routing.</p>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
       </main>
     </>
   );
