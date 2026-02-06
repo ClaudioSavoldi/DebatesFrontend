@@ -1,6 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { getToken, clearToken } from "../auth/tokenStorage";
 
-function Navbar({ user }) {
+function Navbar() {
+  const navigate = useNavigate();
+  const isLoggedIn = !!getToken();
+
+  const handleLogout = () => {
+    clearToken(); //  cancella token dal localStorage
+    navigate("/login"); //  torna a login
+    window.location.reload(); //  aggiorna UI (temporaneo finché non cè state globale)
+  };
+
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
       <div className="container">
@@ -22,7 +32,7 @@ function Navbar({ user }) {
 
         <div className="collapse navbar-collapse" id="mainNavbar">
           <ul className="navbar-nav ms-auto">
-            {!user ? (
+            {!isLoggedIn ? (
               <>
                 <li className="nav-item">
                   <Link className="nav-link" to="/login">
@@ -36,24 +46,11 @@ function Navbar({ user }) {
                 </li>
               </>
             ) : (
-              <>
-                <li className="nav-item">
-                  <span className="nav-link text-light">Ciao {user.username}</span>
-                </li>
-                <li className="nav-item">
-                  <Link className="nav-link" to="/dashboard">
-                    Dashboard
-                  </Link>
-                </li>
-
-                {user.roles?.includes("Moderator") && (
-                  <li className="nav-item">
-                    <Link className="nav-link" to="/mod">
-                      Moderation
-                    </Link>
-                  </li>
-                )}
-              </>
+              <li className="nav-item">
+                <button type="button" className="btn btn-outline-light btn-sm" onClick={handleLogout}>
+                  Logout
+                </button>
+              </li>
             )}
           </ul>
         </div>
