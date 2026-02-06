@@ -4,7 +4,7 @@ function Navbar({ user }) {
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
       <div className="container">
-        <Link className="nav-link" to="/">
+        <Link className="nav-link text-white" to="/">
           Home
         </Link>
 
