@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginApi } from "../api/authApi";
-import { setToken } from "../auth/tokenStorage";
+import { setCredentials } from "../store/authSlice";
+import { useDispatch } from "react-redux";
 
 function Login() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [form, setForm] = useState({
     email: "",
@@ -21,13 +23,8 @@ function Login() {
 
     try {
       const result = await loginApi(form);
-      setToken(result.token);
-
-      console.log("Token salvato");
-      console.log("LOGIN RESPONSE:", result);
-
+      dispatch(setCredentials(result.token)); //salva token + user + localStorage
       navigate("/");
-      window.location.reload(); // temporaneo finché non mettiamo stato globale
     } catch (err) {
       console.error("LOGIN ERROR:", err.message);
     }

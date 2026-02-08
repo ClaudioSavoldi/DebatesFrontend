@@ -1,14 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
-import { getToken, clearToken } from "../auth/tokenStorage";
+import { useDispatch, useSelector } from "react-redux";
+import { logout } from "../store/authSlice";
 
 function Navbar() {
   const navigate = useNavigate();
-  const isLoggedIn = !!getToken();
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
 
   const handleLogout = () => {
-    clearToken(); //  cancella token dal localStorage
-    navigate("/login"); //  torna a login
-    window.location.reload(); //  aggiorna UI (temporaneo finché non cè state globale)
+    dispatch(logout());
+    navigate("/login");
   };
 
   return (
@@ -18,21 +19,13 @@ function Navbar() {
           Home
         </Link>
 
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#mainNavbar"
-          aria-controls="mainNavbar"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
+        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
           <span className="navbar-toggler-icon"></span>
         </button>
 
         <div className="collapse navbar-collapse" id="mainNavbar">
           <ul className="navbar-nav ms-auto">
-            {!isLoggedIn ? (
+            {!user ? (
               <>
                 <li className="nav-item">
                   <Link className="nav-link" to="/login">
@@ -46,11 +39,37 @@ function Navbar() {
                 </li>
               </>
             ) : (
-              <li className="nav-item">
-                <button type="button" className="btn btn-outline-light btn-sm" onClick={handleLogout}>
-                  Logout
-                </button>
-              </li>
+              <>
+                <li className="nav-item">
+                  <span className="nav-link text-light">Ciao {user.username}</span>
+                </li>
+
+                <li className="nav-item">
+                  <Link className="nav-link" to="/dashboard">
+                    Dashboard
+                  </Link>
+                </li>
+
+                <li className="nav-item">
+                  <Link className="nav-link" to="/public/matches">
+                    Match pubblici
+                  </Link>
+                </li>
+
+                {user.roles?.includes("Moderator") && (
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/mod">
+                      Moderation
+                    </Link>
+                  </li>
+                )}
+
+                <li className="nav-item">
+                  <button type="button" className="btn btn-outline-light btn-sm ms-2" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </li>
+              </>
             )}
           </ul>
         </div>
