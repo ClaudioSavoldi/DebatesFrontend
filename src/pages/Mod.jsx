@@ -61,7 +61,7 @@ function Mod() {
 
     try {
       await changeDebateStatusApi(debateId, newStatus);
-      setActionMessage("Operazione completata ✅");
+      setActionMessage("Operazione completata");
       await load();
     } catch (err) {
       setActionError(err.message);

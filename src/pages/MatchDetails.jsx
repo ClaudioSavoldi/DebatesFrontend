@@ -7,263 +7,277 @@ import { getDebateByIdApi } from "../api/debatesApi";
 
 import MatchPhaseBadge from "../components/MatchPhaseBadge";
 import SubmissionEditor from "../components/SubmissionEditor";
+import SubmissionsPair from "../components/SubmissionsPair";
 
 import { saveOpeningDraftApi, submitOpeningApi, saveRebuttalDraftApi, submitRebuttalApi } from "../api/submissionsApi";
 
-import { voteApi } from "../api/votesApi";
-
 function MatchDetails() {
   const { id } = useParams();
+  const myUserId = useSelector((s) => s.auth.user?.userId);
 
   const [match, setMatch] = useState(null);
   const [debateTitle, setDebateTitle] = useState(null);
+  const [debateBody, setDebateBody] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [voteError, setVoteError] = useState(null);
-  const [voteMessage, setVoteMessage] = useState(null);
-  const [voteLoading, setVoteLoading] = useState(false);
-
-  const myUserId = useSelector((s) => s.auth.user?.userId);
+  const reloadMatch = async () => {
+    const m = await getMatchByIdApi(id);
+    setMatch(m);
+  };
 
   const isParticipant = useMemo(() => {
     if (!match || !myUserId) return false;
     return match.proUserId === myUserId || match.controUserId === myUserId;
   }, [match, myUserId]);
 
+  const mySide = useMemo(() => {
+    if (!match || !myUserId) return null;
+    if (match.proUserId === myUserId) return "PRO";
+    if (match.controUserId === myUserId) return "CONTRO";
+    return null;
+  }, [match, myUserId]);
+
+  const findBodyByUserId = (arr, userId) => {
+    if (!Array.isArray(arr) || !userId) return null;
+    const item = arr.find((x) => x.userId === userId);
+    return item?.body ?? null;
+  };
+
+  const proOpening = match ? findBodyByUserId(match.openingSubmissions, match.proUserId) : null;
+  const controOpening = match ? findBodyByUserId(match.openingSubmissions, match.controUserId) : null;
+
+  const proRebuttal = match ? findBodyByUserId(match.rebuttalSubmissions, match.proUserId) : null;
+  const controRebuttal = match ? findBodyByUserId(match.rebuttalSubmissions, match.controUserId) : null;
+
   useEffect(() => {
-    let cancelled = false;
+    let alive = true;
 
     async function load() {
       setLoading(true);
       setError(null);
-      setVoteError(null);
-      setVoteMessage(null);
 
       try {
-        const matchData = await getMatchByIdApi(id);
-        if (cancelled) return;
+        const m = await getMatchByIdApi(id);
+        if (!alive) return;
 
-        setMatch(matchData);
+        setMatch(m);
 
-        // seconda fetch: titolo del dibattito
-        if (matchData?.debateId) {
-          try {
-            const debate = await getDebateByIdApi(matchData.debateId);
-            if (!cancelled) setDebateTitle(debate?.title ?? null);
-          } catch {
-            // se fallisce non blocchiamo la pagina
-            if (!cancelled) setDebateTitle(null);
-          }
+        try {
+          const d = await getDebateByIdApi(m.debateId);
+          if (!alive) return;
+
+          setDebateTitle(d?.title ?? null);
+          setDebateBody(d?.body ?? null);
+        } catch {
+          if (!alive) return;
+          setDebateTitle(null);
+          setDebateBody(null);
         }
-      } catch (err) {
-        if (!cancelled) setError(err.message);
+      } catch (e) {
+        if (!alive) return;
+        setError(e.message);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (alive) setLoading(false);
       }
     }
 
     load();
-
     return () => {
-      cancelled = true;
+      alive = false;
     };
   }, [id]);
-
-  const handleVote = async (value) => {
-    if (!match) return;
-
-    setVoteError(null);
-    setVoteMessage(null);
-    setVoteLoading(true);
-
-    try {
-      await voteApi(match.id, value);
-      setVoteMessage("Voto registrato ");
-    } catch (err) {
-      // Backend: 403 quando voti un match in cui partecipi (o non autorizzato)
-      if (String(err.message).includes("403")) {
-        setVoteError("Non puoi votare un match a cui partecipi.");
-      } else {
-        setVoteError(err.message);
-      }
-    } finally {
-      setVoteLoading(false);
-    }
-  };
 
   if (loading) return <div className="container mt-4">Loading...</div>;
   if (error) return <div className="container mt-4 alert alert-danger">{error}</div>;
   if (!match) return <div className="container mt-4">Match non trovato.</div>;
 
-  return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 className="mb-1">Dettaglio match</h2>
-          <div className="text-muted">
-            Dibattito: <span className="fw-semibold">{debateTitle ?? match.debateId}</span>
+  // Se non sei participant qui non puoi  fare nulla
+  if (!isParticipant) {
+    return (
+      <div className="container dp-home mt-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <div className="dp-eyebrow">MATCH</div>
+            <h2 className="mb-0">Accesso limitato</h2>
           </div>
+          <Link to="/public/matches" className="btn btn-outline-secondary btn-sm">
+            ← Vai ai match pubblici
+          </Link>
         </div>
 
-        <Link to="/dashboard" className="btn btn-outline-secondary btn-sm">
-          ← Torna alla dashboard
+        <div className="alert alert-warning">Questo è un match a cui non partecipi. Per leggere e votare usa la pagina pubblica.</div>
+
+        <Link to={`/public/matches/${match.id}`} className="btn btn-primary">
+          Apri versione pubblica
         </Link>
       </div>
+    );
+  }
 
-      {/* Info match */}
-      <div className="card mb-3">
-        <div className="card-body d-flex justify-content-between align-items-start gap-3">
-          <div>
-            <div>
-              <span className="fw-semibold">MatchId:</span> {match.id}
+  const phaseHint =
+    match.phase === 1
+      ? "Sei in Opening: scrivi la tua posizione iniziale."
+      : match.phase === 2
+        ? "Sei in Rebuttal: rispondi agli argomenti dell’avversario."
+        : match.phase === 3
+          ? "Voting: il pubblico sta votando (tu non puoi votare)."
+          : "Closed: il match è concluso.";
+
+  return (
+    <div className="container dp-home mt-4">
+      {/* HERO editoriale. badge sotto su schermi piccoli */}
+      <section className="card dp-card dp-hero mb-4">
+        <div className="card-body">
+          <div className="dp-eyebrow">IL TUO MATCH</div>
+
+          <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
+            <div className="min-w-0">
+              <h1 className="dp-title mb-2 text-break">{debateTitle ?? `Dibattito: ${match.debateId}`}</h1>
+
+              <p className="dp-muted mb-3" style={{ maxWidth: 820 }}>
+                {phaseHint}
+              </p>
+
+              <div className="d-flex flex-wrap gap-2">
+                <Link to="/dashboard" className="btn btn-outline-secondary">
+                  ← Torna alla dashboard
+                </Link>
+                <Link to="/public/matches" className="btn btn-outline-secondary">
+                  Match pubblici
+                </Link>
+              </div>
             </div>
-            <div>
-              <span className="fw-semibold">Creato:</span> {new Date(match.createdAt).toLocaleString()}
+
+            {/* pill box a destra */}
+            <div className="d-flex  gap-2 align-items-start align-content-between">
+              <div className="card dp-card" style={{ boxShadow: "none" }}>
+                <div className="card-body py-2 px-3">
+                  <div className="dp-muted small">Fase</div>
+                  <MatchPhaseBadge phase={match.phase} />
+                </div>
+              </div>
+
+              <div className="card dp-card" style={{ boxShadow: "none" }}>
+                <div className="card-body py-2 px-3">
+                  <div className="dp-muted small">Sei</div>
+                  {mySide === "PRO" ? <span className="badge bg-success">PRO</span> : <span className="badge bg-danger">CONTRO</span>}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="text-end">
-            <div className="mb-1">
-              <span className="fw-semibold me-2">Fase:</span>
-              <MatchPhaseBadge phase={match.phase} />
-            </div>
-            <div className="text-muted" style={{ fontSize: 13 }}>
-              DebateId: {match.debateId}
-            </div>
-          </div>
-        </div>
-      </div>
+          {/* descrizione dibattito: collassabile per non rubare spazio in Opening */}
+          {debateBody && (
+            <details className="mt-3">
+              <summary className="dp-muted" style={{ cursor: "pointer" }}>
+                Mostra descrizione del dibattito
+              </summary>
+              <div className="mt-2 dp-muted" style={{ whiteSpace: "pre-wrap" }}>
+                {debateBody}
+              </div>
+            </details>
+          )}
 
-      {/* Partecipanti & Voti */}
-      <div className="row g-3">
-        <div className="col-md-6">
-          <div className="card h-100">
-            <div className="card-header fw-semibold">Partecipanti & Voti</div>
-            <div className="card-body">
-              <div>
-                <span className="fw-semibold">ProUserId:</span> {match.proUserId}
-              </div>
-              <div>
-                <span className="fw-semibold">ControUserId:</span> {match.controUserId}
-              </div>
-              <hr />
-              <div>
-                <span className="fw-semibold">ProCount:</span> {match.proCount}
-              </div>
-              <div>
-                <span className="fw-semibold">ControCount:</span> {match.controCount}
-              </div>
-              <div>
-                <span className="fw-semibold">TotalVotes:</span> {match.totalVotes}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Esito */}
-        <div className="col-md-6">
-          <div className="card h-100">
-            <div className="card-header fw-semibold">Esito</div>
-            <div className="card-body">
-              <div>
-                <span className="fw-semibold">WinnerUsername:</span> {match.winnerUsername ?? "—"}
-              </div>
-              <div>
-                <span className="fw-semibold">Draw:</span> {match.isDraw ? "Sì" : "No"}
-              </div>
-              <hr />
-              <div>
-                <span className="fw-semibold">VotingEndsAt:</span> {match.votingEndsAt ? new Date(match.votingEndsAt).toLocaleString() : "—"}
-              </div>
-              <div>
-                <span className="fw-semibold">ClosedAt:</span> {match.closedAt ? new Date(match.closedAt).toLocaleString() : "—"}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Submissions: per ora lasciamo JSON (poi li “abbelliamo”) */}
-      <div className="row g-3 mt-1">
-        <div className="col-md-6">
-          <div className="card">
-            <div className="card-header fw-semibold">Opening submissions</div>
-            <div className="card-body">
-              {match.openingSubmissions?.length ? (
-                <pre className="mb-0">{JSON.stringify(match.openingSubmissions, null, 2)}</pre>
-              ) : (
-                <div className="text-muted">Nessuna submission disponibile.</div>
-              )}
-            </div>
+          <div className="dp-muted small mt-3">
+            MatchId: <span className="text-dark">{match.id}</span> · Creato: <span className="text-dark">{new Date(match.createdAt).toLocaleString()}</span> ·
+            Voti (pubblico): <span className="text-dark fw-semibold">{match.totalVotes}</span> (Pro {match.proCount} / Contro {match.controCount})
           </div>
         </div>
+      </section>
 
-        <div className="col-md-6">
-          <div className="card">
-            <div className="card-header fw-semibold">Rebuttal submissions</div>
-            <div className="card-body">
-              {match.rebuttalSubmissions?.length ? (
-                <pre className="mb-0">{JSON.stringify(match.rebuttalSubmissions, null, 2)}</pre>
-              ) : (
-                <div className="text-muted">Nessuna submission disponibile.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Opening */}
-      {match.phase === 1 && (
-        <div className="mt-3">
-          <SubmissionEditor
+      {/* Testi (visibili se disponibili) */}
+      <div className="row g-4">
+        <div className="col-12">
+          <SubmissionsPair
             title="Opening"
-            onSaveDraft={(body) => saveOpeningDraftApi(match.id, body)}
-            onSubmitFinal={(body) => submitOpeningApi(match.id, body)}
+            proText={proOpening}
+            controText={controOpening}
+            emptyHint="Opening non disponibile (diventa visibile quando entrambi consegnano)."
           />
         </div>
-      )}
 
-      {/* Rebuttal */}
-      {match.phase === 2 && (
-        <div className="mt-3">
-          <SubmissionEditor
+        <div className="col-12">
+          <SubmissionsPair
             title="Rebuttal"
-            onSaveDraft={(body) => saveRebuttalDraftApi(match.id, body)}
-            onSubmitFinal={(body) => submitRebuttalApi(match.id, body)}
+            proText={proRebuttal}
+            controText={controRebuttal}
+            emptyHint="Rebuttal non disponibile (diventa visibile quando entrambi consegnano)."
           />
         </div>
-      )}
 
-      {/* Voting */}
-      {match.phase === 3 && (
-        <div className="mt-3 card">
-          <div className="card-header fw-semibold">Voting</div>
-          <div className="card-body">
-            {voteError && <div className="alert alert-danger">{voteError}</div>}
-            {voteMessage && <div className="alert alert-success">{voteMessage}</div>}
-
-            {isParticipant ? (
-              <div className="alert alert-secondary mb-0">Non puoi votare un match a cui partecipi.</div>
-            ) : (
-              <div className="d-flex gap-2">
-                <button className="btn btn-success" type="button" disabled={voteLoading} onClick={() => handleVote(1)}>
-                  Vota Pro
-                </button>
-                <button className="btn btn-danger" type="button" disabled={voteLoading} onClick={() => handleVote(2)}>
-                  Vota Contro
-                </button>
-              </div>
-            )}
+        {/* Editor Opening */}
+        {match.phase === 1 && (
+          <div className="col-12">
+            <SubmissionEditor
+              title="Scrivi Opening"
+              onSaveDraft={async (body) => {
+                await saveOpeningDraftApi(match.id, body);
+                await reloadMatch();
+              }}
+              onSubmitFinal={async (body) => {
+                await submitOpeningApi(match.id, body);
+                await reloadMatch();
+              }}
+            />
+            <div className="dp-muted mt-2" style={{ fontSize: 13 }}>
+              Dopo la consegna, l’opening diventa visibile quando anche l’avversario consegna.
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Closed */}
-      {match.phase === 4 && (
-        <div className="mt-3 alert alert-info">{match.isDraw ? "Match chiuso: pareggio." : `Match chiuso: vince ${match.winnerUsername}.`}</div>
-      )}
+        {/* Editor Rebuttal */}
+        {match.phase === 2 && (
+          <div className="col-12">
+            <SubmissionEditor
+              title="Scrivi Rebuttal"
+              onSaveDraft={async (body) => {
+                await saveRebuttalDraftApi(match.id, body);
+                await reloadMatch();
+              }}
+              onSubmitFinal={async (body) => {
+                await submitRebuttalApi(match.id, body);
+                await reloadMatch();
+              }}
+            />
+            <div className="dp-muted mt-2" style={{ fontSize: 13 }}>
+              Puoi leggere gli opening sopra per preparare la tua risposta.
+            </div>
+          </div>
+        )}
+
+        {/* Voting (informativo) */}
+        {match.phase === 3 && (
+          <div className="col-12">
+            <div className="alert alert-info mb-0">
+              Questo match è in fase <span className="fw-semibold">Voting</span>. Il voto è pubblico e avviene dalla sezione{" "}
+              <Link to="/public/matches" className="fw-semibold">
+                Match pubblici
+              </Link>
+              .
+              <div className="mt-2 text-muted" style={{ fontSize: 13 }}>
+                Tu non puoi votare perché sei un partecipante.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Closed */}
+        {match.phase === 4 && (
+          <div className="col-12">
+            <div className="alert alert-success mb-0">
+              {match.isDraw ? (
+                "Match chiuso: pareggio."
+              ) : (
+                <>
+                  Match chiuso: vince <span className="fw-semibold">{match.winnerUsername ?? "—"}</span>.
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,74 +1,62 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import AuthCard from "../components/AuthCard";
+import { useNavigate } from "react-router-dom";
+import { registerApi } from "../api/authApi";
 
 function Register() {
-  const [form, setForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((p) => ({ ...p, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("REGISTER form data:", form);
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await registerApi(form);
+      console.log("REGISTER RESPONSE:", res);
+      navigate("/login");
+    } catch (err) {
+      console.error("REGISTER ERROR:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <AuthCard title="Registrazione">
+    <div className="container mt-4" style={{ maxWidth: 420 }}>
+      <h2 className="mb-3">Register</h2>
+
+      {error && <div className="alert alert-danger">{error}</div>}
+
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="form-label" htmlFor="username">
-            Username
-          </label>
-          <input className="form-control" id="username" name="username" value={form.username} onChange={handleChange} required />
+          <label className="form-label">Username</label>
+          <input className="form-control" name="username" value={form.username} onChange={handleChange} required />
         </div>
 
         <div className="mb-3">
-          <label className="form-label" htmlFor="email">
-            Email
-          </label>
-          <input className="form-control" id="email" name="email" type="email" value={form.email} onChange={handleChange} required />
+          <label className="form-label">Email</label>
+          <input className="form-control" name="email" type="email" value={form.email} onChange={handleChange} required />
         </div>
 
         <div className="mb-3">
-          <label className="form-label" htmlFor="password">
-            Password
-          </label>
-          <input className="form-control" id="password" name="password" type="password" value={form.password} onChange={handleChange} required minLength={6} />
+          <label className="form-label">Password</label>
+          <input className="form-control" name="password" type="password" value={form.password} onChange={handleChange} required />
         </div>
 
-        <div className="mb-3">
-          <label className="form-label" htmlFor="confirmPassword">
-            Conferma password
-          </label>
-          <input
-            className="form-control"
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            value={form.confirmPassword}
-            onChange={handleChange}
-            required
-            minLength={6}
-          />
-        </div>
-
-        <button className="btn btn-primary w-100" type="submit">
-          Registrati
+        <button className="btn btn-primary w-100" type="submit" disabled={loading}>
+          {loading ? "Creazione..." : "Crea account"}
         </button>
-
-        <p className="text-muted mt-3 mb-0">
-          Hai già un account? <Link to="/login">Accedi</Link>
-        </p>
       </form>
-    </AuthCard>
+    </div>
   );
 }
 

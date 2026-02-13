@@ -17,7 +17,8 @@ export function createDebateApi(payload) {
 }
 
 /**
- * side: numero (enum backend)
+ * (enum backend)
+ * side: numero
  * 1 = Pro, 2 = Contro
  */
 export function joinDebateApi(debateId, side) {

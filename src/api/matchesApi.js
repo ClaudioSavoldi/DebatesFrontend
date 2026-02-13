@@ -7,3 +7,7 @@ export function getMyMatchesApi() {
 export function getMatchByIdApi(id) {
   return http(`/api/Matches/${id}`, { method: "GET" });
 }
+
+export function getMatchResultsApi() {
+  return http("/api/Matches/results");
+}
