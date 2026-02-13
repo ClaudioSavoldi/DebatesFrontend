@@ -1,4 +1,4 @@
-# DebateHub – Frontend
+# DebateHub – Frontend (link BackEndRepo https://github.com/ClaudioSavoldi/DebatePlatform.Api.git)
 
 DebateHub è una piattaforma web per la gestione di dibattiti strutturati Pro vs Contro con sistema di voto pubblico.  
 Questo repository contiene il frontend sviluppato in React.
@@ -60,5 +60,6 @@ Il frontend reagisce dinamicamente allo stato del match mostrando:
 - Badge fase
 - Pannello voto solo in fase Voting
 - Risultato finale in fase Closed
+
 
 
