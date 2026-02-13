@@ -1,16 +1,64 @@
-# React + Vite
+# DebateHub – Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+DebateHub è una piattaforma web per la gestione di dibattiti strutturati Pro vs Contro con sistema di voto pubblico.  
+Questo repository contiene il frontend sviluppato in React.
 
-Currently, two official plugins are available:
+## Tecnologie utilizzate
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React
+- React Router
+- Redux Toolkit
+- Bootstrap 5
+- JWT Decode
+- Vite
 
-## React Compiler
+## Architettura generale
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+L'applicazione è strutturata in:
 
-## Expanding the ESLint configuration
+- Pagine pubbliche (consultazione match, risultati, lettura dibattiti)
+- Area autenticata (Dashboard, partecipazione ai match, creazione dibattiti)
+- Area moderatore (gestione e approvazione dibattiti)
+- Sistema di gestione stato dei match (Opening → Rebuttal → Voting → Closed)
+- Sistema di autenticazione con JWT
+- Gestione ruoli (Utente / Moderatore)
+- Separazione netta tra flusso pubblico e flusso partecipante
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Funzionalità principali
+
+### Utenti non autenticati
+- Visualizzazione dei topic disponibili
+- Visualizzazione match pubblici
+- Lettura opening e rebuttal
+- Votazione (solo in fase Voting, previa autenticazione)
+
+### Utenti autenticati
+- Partecipazione ai dibattiti (Pro / Contro)
+- Dashboard personale
+  - Match attivi
+  - Match conclusi
+  - Iscrizioni in coda
+- Scrittura Opening
+- Scrittura Rebuttal
+- Visualizzazione risultati
+
+### Moderatore
+- Approvazione o rifiuto dei dibattiti creati dagli utenti
+
+## Gestione stato dei match
+
+Ogni match segue un ciclo di vita strutturato:
+
+1. Opening
+2. Rebuttal
+3. Voting
+4. Closed
+
+Il frontend reagisce dinamicamente allo stato del match mostrando:
+
+- Editor solo quando consentito
+- Badge fase
+- Pannello voto solo in fase Voting
+- Risultato finale in fase Closed
+
+
